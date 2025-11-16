@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chilli Disease Detector</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="nav-brand">Chilli Disease Detector</div>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="classify.html" class="active">Classify & Retrain</a></li>
+    </ul>
+  </nav>
+
+  <!-- Classification Section -->
+  <section class="classify-section">
+    <h3>Upload & Classify</h3>
+    <form id="uploadForm">
+      <input type="file" id="fileInput" accept="image/*" />
+      <button type="submit">Classify</button>
+    </form>
+
+    <!-- Preview -->
+    <div class="preview-container">
+      <img id="preview" alt="Preview" style="max-width: 300px; margin-top: 15px; display: none;">
+    </div>
+
+    <!-- Heatmap -->
+    <div class="heatmap-container" style="margin-top:12px;">
+      <h4 style="margin:8px 0 6px;">Explainability (Heatmap)</h4>
+      <img id="heatmap" alt="Grad-CAM heatmap" style="max-width:300px; display:none; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+    </div>
+
+    <!-- Loader -->
+    <div id="loader" class="loader" style="display:none;"></div>
+
+    <!-- Result card -->
+    <div id="resultCard" class="result-card" style="display:none;">
+      <div class="result-content">
+        <p><strong>Prediction:</strong> <span id="predLabel"></span></p>
+        <p><strong>Confidence:</strong> <span id="predConfidence"></span>%</p>
+        <p><strong>Severity:</strong> <span id="predSeverity"></span></p>
+      </div>
+      <h4>Treatment</h4>
+      <table id="treatmentTable" border="1" style="border-collapse: collapse; width:100%;">
+        <thead>
+          <tr>
+            <th>Disease</th>
+            <th>Treatment</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Filled dynamically -->
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Chatbot Section -->
+ <!-- Chatbot Section -->
+<section class="chatbot-section">
+  <button id="chatToggleBtn" style="position:fixed; bottom:20px; right:20px; padding:10px 15px; border-radius:50px; background:#4caf50; color:white; border:none; cursor:pointer; z-index:1000;">
+    Chatbot
+  </button>
+
+  <div id="chatContainer" style="display:none; position:fixed; bottom:70px; right:20px; width:350px; max-height:400px; background:#222; border:1px solid #ccc; border-radius:10px; overflow:hidden; display:flex; flex-direction:column; z-index:1000;">
+    <div id="chatBox" class="chat-box" style="flex:1; padding:10px; overflow-y:auto; color:#fff;"></div>
+    <div style="display:flex; padding:5px; border-top:1px solid #555;">
+      <input type="text" id="chatInput" placeholder="Ask about plant care..." style="flex:1; padding:5px; border-radius:5px; border:none;">
+      <button id="chatBtn" style="margin-left:5px; padding:5px 10px; border-radius:5px; border:none; background:#4caf50; color:white; cursor:pointer;">Send</button>
+    </div>
+  </div>
+</section>
+
+
+  <!-- Retrain Section -->
+  <section class="retrain-section">
+    <h3>Retrain the Model</h3>
+    <p>If you’ve uploaded new labeled images, click below to retrain the model.</p>
+    <button id="retrainBtn"> Retrain Model</button>
+    <div id="retrainStatus"></div>
+  </section>
+
+  <script src="script.js"></script>
+</body>
+</html>
+
+
