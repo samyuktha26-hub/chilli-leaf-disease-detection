@@ -7,9 +7,14 @@ import numpy as np
 from PIL import Image
 import io, os, time, subprocess
 from gradcam_utils import generate_gradcam_overlay
+from openai import OpenAI
 
 app = Flask(__name__)
 CORS(app)
+
+# --- NEW: Configure OpenAI ---
+# REPLACE 'sk-...' WITH YOUR ACTUAL API KEY
+client = OpenAI(api_key="aaa")
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 tflite_model_path = os.path.join(script_dir, "chilli_disease_mobilenetv2.tflite")
@@ -26,6 +31,7 @@ input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
 with open(labels_path) as f:
     labels = [line.strip() for line in f]
+
 # app.py - somewhere near the top after labels are loaded
 treatment_dict = {
     "healthy": "No treatment required. Continue good farm practices.",
@@ -38,6 +44,49 @@ treatment_dict = {
 # Keras model only for Grad-CAM
 MODEL_KERAS = tf.keras.models.load_model(keras_model_path)
 
+# ---------------------------------------------------------
+# --- NEW: Chatbot Route ---
+# ---------------------------------------------------------
+@app.route('/chat', methods=['POST'])
+def chat():
+    try:
+        data = request.json
+        user_message = data.get('message')
+
+        if not user_message:
+            return jsonify({"error": "No message provided"}), 400
+
+        # We feed your treatment_dict into the AI's instructions so it stays consistent
+        system_instruction = f"""
+        You are an expert agriculturalist specializing in Chilli Plant diseases.
+        
+        Here are the standard treatments we recommend:
+        {str(treatment_dict)}
+        
+        1. If the user asks about a specific disease in this list, recommend the treatment above.
+        2. If the user asks general questions, provide short, practical farming advice.
+        3. Keep answers concise (under 3 sentences) as farmers are reading this on mobile phones.
+        """
+
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo", # Use "gpt-4o" if you have access for better results
+            messages=[
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": user_message}
+            ]
+        )
+
+        bot_reply = response.choices[0].message.content
+        return jsonify({"reply": bot_reply})
+
+    except Exception as e:
+        print(f"Chat Error: {e}")
+        return jsonify({"error": "Something went wrong with the chatbot"}), 500
+
+
+# ---------------------------------------------------------
+# --- Existing Routes (Unchanged) ---
+# ---------------------------------------------------------
 
 @app.route("/predict", methods=["POST"])
 def predict():

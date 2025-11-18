@@ -14,23 +14,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const chatBox = document.getElementById("chatBox");
     const chatInput = document.getElementById("chatInput");
     const chatBtn = document.getElementById("chatBtn");
+    
+    // Toggle Chatbox Elements
+    const chatToggleBtn = document.getElementById("chatToggleBtn");
+    const chatContainer = document.getElementById("chatContainer");
 
-    // --- Rule-based chatbot responses ---
-    const chatbotRules = {
-        "leaf curl": "Leaf Curl can be treated by removing infected leaves, using neem oil, and ensuring airflow.",
-        "leaf spot": "Leaf Spot requires pruning infected leaves and applying fungicide.",
-        "powdery mildew": "Powdery Mildew can be treated with wettable sulphur or potassium bicarbonate sprays.",
-        "whitefly": "Whitefly infestation can be controlled with sticky traps, neem oil, or insecticidal soap.",
-        "yellowish": "Yellowish leaves may indicate nutrient deficiency; apply balanced fertilizer.",
-        "healthy": "The plant is healthy. Maintain regular care, water properly, and monitor for pests.",
-        "watering": "Ensure proper watering: not too much, not too little. Check soil moisture regularly.",
-        "fertilizer": "Use a balanced fertilizer or compost to boost plant health and prevent deficiencies.",
-        "disease prevention": "Keep the field clean, remove infected leaves, rotate crops, and monitor plants weekly.",
-        "pest control": "Use neem oil, sticky traps, or organic insecticides to manage pests naturally.",
-        "general advice": "Provide sufficient sunlight, water correctly, and monitor for symptoms regularly."
-    };
-
-    // --- Form submit ---
+    // --- Form submit (Prediction) ---
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
         const file = fileInput.files[0];
@@ -47,7 +36,6 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const res = await fetch("http://127.0.0.1:5000/predict", { method: "POST", body: formData });
             const data = await res.json();
-            console.log(data);
 
             // Preview
             preview.src = URL.createObjectURL(file);
@@ -86,47 +74,115 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // --- Chatbot ---
-    chatBtn.addEventListener("click", () => {
-        const msg = chatInput.value.trim().toLowerCase();
+    // ------------------------------------------------------
+    // --- NEW CHATBOT LOGIC (Connects to Python Backend) ---
+    // ------------------------------------------------------
+    
+    // 1. Toggle Chat Window
+    if (chatToggleBtn && chatContainer) {
+        chatToggleBtn.addEventListener("click", () => {
+            // Toggle between 'none' and 'flex'
+            if (chatContainer.style.display === "none" || chatContainer.style.display === "") {
+                chatContainer.style.display = "flex";
+            } else {
+                chatContainer.style.display = "none";
+            }
+        });
+    }
+
+    // 2. Send Message
+    chatBtn.addEventListener("click", async () => {
+        const msg = chatInput.value.trim();
         if (!msg) return;
-        appendChat("You", chatInput.value);
+
+        // Show User Message
+        appendChat("You", msg);
         chatInput.value = "";
 
-        let response = "Sorry, I don't understand. Try asking about a disease or care tip.";
-        for (const key in chatbotRules) {
-            if (msg.includes(key)) {
-                response = chatbotRules[key];
-                break;
+        // Show "Thinking..."
+        const loadingId = "loading-" + Date.now();
+        appendChat("Bot", "<i>Thinking...</i>", loadingId);
+
+        try {
+            // Send to Python Backend
+            const res = await fetch("http://127.0.0.1:5000/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: msg })
+            });
+
+            const data = await res.json();
+
+            // Remove "Thinking..." and show response
+            removeChat(loadingId);
+            
+            if (data.reply) {
+                appendChat("Bot", data.reply);
+            } else if (data.error) {
+                appendChat("Bot", "Error: " + data.error);
             }
+
+        } catch (err) {
+            console.error(err);
+            removeChat(loadingId);
+            appendChat("Bot", "Error: Could not connect to server.");
         }
-        appendChat("Bot", response);
     });
 
-    function appendChat(sender, message) {
+    function appendChat(sender, message, id = null) {
         const p = document.createElement("p");
+        if (id) p.id = id;
+        
+        // Different colors for User vs Bot
+        if (sender === "You") {
+            p.style.textAlign = "right";
+            p.style.backgroundColor = "#4caf50"; 
+            p.style.color = "white";
+            p.style.padding = "8px";
+            p.style.borderRadius = "10px";
+            p.style.margin = "5px 0 5px auto"; // Align right
+            p.style.maxWidth = "80%";
+        } else {
+            p.style.textAlign = "left";
+            p.style.backgroundColor = "#444";
+            p.style.color = "white";
+            p.style.padding = "8px";
+            p.style.borderRadius = "10px";
+            p.style.margin = "5px auto 5px 0"; // Align left
+            p.style.maxWidth = "80%";
+        }
+
         p.innerHTML = `<strong>${sender}:</strong> ${message}`;
         chatBox.appendChild(p);
         chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function removeChat(id) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.remove();
+        }
     }
 
     // --- Retrain button ---
     const retrainBtn = document.getElementById("retrainBtn");
     const retrainStatus = document.getElementById("retrainStatus");
 
-    retrainBtn.addEventListener("click", async () => {
-        retrainStatus.innerText = "⏳ Retraining started...";
-        try {
-            const res = await fetch("http://127.0.0.1:5000/retrain", { method: "POST" });
-            const data = await res.json();
-            if (res.ok) {
-                retrainStatus.innerText = "✅ " + data.message;
-            } else {
-                retrainStatus.innerText = "❌ Retraining failed: " + (data.error || "unknown error");
+    if(retrainBtn){
+        retrainBtn.addEventListener("click", async () => {
+            retrainStatus.innerText = "⏳ Retraining started...";
+            try {
+                const res = await fetch("http://127.0.0.1:5000/retrain", { method: "POST" });
+                const data = await res.json();
+                if (res.ok) {
+                    retrainStatus.innerText = "✅ " + data.message;
+                } else {
+                    retrainStatus.innerText = "❌ Retraining failed: " + (data.error || "unknown error");
+                }
+            } catch (err) {
+                retrainStatus.innerText = "❌ Error connecting to backend.";
+                console.error(err);
             }
-        } catch (err) {
-            retrainStatus.innerText = "❌ Error connecting to backend.";
-            console.error(err);
-        }
-    });
+        });
+    }
 });
