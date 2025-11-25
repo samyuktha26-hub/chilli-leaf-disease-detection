@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Navbar -->
+
   <nav class="navbar">
     <div class="nav-brand">Chilli Disease Detector</div>
     <ul class="nav-links">
@@ -16,7 +16,7 @@
     </ul>
   </nav>
 
-  <!-- Classification Section -->
+  <!-- Classification -->
   <section class="classify-section">
     <h3>Upload & Classify</h3>
     <form id="uploadForm">
@@ -24,69 +24,57 @@
       <button type="submit">Classify</button>
     </form>
 
-    <!-- Preview -->
     <div class="preview-container">
-      <img id="preview" alt="Preview" style="max-width: 300px; margin-top: 15px; display: none;">
+      <img id="preview" alt="Preview" style="max-width: 300px; display:none;">
     </div>
 
-    <!-- Heatmap -->
+    <div id="invalidMsg" style="color:red; font-size:18px; margin-top:10px; display:none;"></div>
+
     <div class="heatmap-container" style="margin-top:12px;">
-      <h4 style="margin:8px 0 6px;">Explainability (Heatmap)</h4>
-      <img id="heatmap" alt="Grad-CAM heatmap" style="max-width:300px; display:none; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+      <h4>Explainability (Heatmap)</h4>
+      <img id="heatmap" style="max-width:300px; display:none;">
     </div>
 
-    <!-- Loader -->
     <div id="loader" class="loader" style="display:none;"></div>
 
-    <!-- Result card -->
     <div id="resultCard" class="result-card" style="display:none;">
-      <div class="result-content">
-        <p><strong>Prediction:</strong> <span id="predLabel"></span></p>
-        <p><strong>Confidence:</strong> <span id="predConfidence"></span>%</p>
-        <p><strong>Severity:</strong> <span id="predSeverity"></span></p>
-      </div>
+      <p><strong>Prediction:</strong> <span id="predLabel"></span></p>
+      <p><strong>Confidence:</strong> <span id="predConfidence"></span>%</p>
+      <p><strong>Severity:</strong> <span id="predSeverity"></span></p>
       <h4>Treatment</h4>
-      <table id="treatmentTable" border="1" style="border-collapse: collapse; width:100%;">
-        <thead>
-          <tr>
-            <th>Disease</th>
-            <th>Treatment</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- Filled dynamically -->
-        </tbody>
+      <table id="treatmentTable">
+        <tbody></tbody>
       </table>
     </div>
   </section>
 
-  <!-- Chatbot Section -->
- <!-- Chatbot Section -->
-<section class="chatbot-section">
-  <button id="chatToggleBtn" style="position:fixed; bottom:20px; right:20px; padding:10px 15px; border-radius:50px; background:#4caf50; color:white; border:none; cursor:pointer; z-index:1000;">
-    Chatbot
-  </button>
+  <!-- Chatbot -->
+  <section class="chatbot-section">
+    <button id="chatToggleBtn" style="position:fixed; bottom:20px; right:20px; padding:10px 15px; border-radius:50px; background:#4caf50; color:white;">
+      Chatbot
+    </button>
 
-  <div id="chatContainer" style="display:none; position:fixed; bottom:70px; right:20px; width:350px; max-height:400px; background:#222; border:1px solid #ccc; border-radius:10px; overflow:hidden; display:flex; flex-direction:column; z-index:1000;">
-    <div id="chatBox" class="chat-box" style="flex:1; padding:10px; overflow-y:auto; color:#fff;"></div>
-    <div style="display:flex; padding:5px; border-top:1px solid #555;">
-      <input type="text" id="chatInput" placeholder="Ask about plant care..." style="flex:1; padding:5px; border-radius:5px; border:none;">
-      <button id="chatBtn" style="margin-left:5px; padding:5px 10px; border-radius:5px; border:none; background:#4caf50; color:white; cursor:pointer;">Send</button>
+    <div id="chatContainer" style="display:none; position:fixed; bottom:70px; right:20px; width:350px; max-height:400px; background:#222; border-radius:10px; overflow:hidden; flex-direction:column;">
+      <div id="chatBox" style="flex:1; padding:10px; overflow-y:auto; color:#fff;"></div>
+      <div style="display:flex; padding:5px;">
+        <input type="text" id="chatInput" placeholder="Ask something..." style="flex:1; padding:5px; border-radius:5px;">
+        <button id="chatBtn" style="margin-left:5px; padding:5px 10px; background:#4caf50; color:white;">Send</button>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
 
-
-  <!-- Retrain Section -->
   <section class="retrain-section">
     <h3>Retrain the Model</h3>
-    <p>If you’ve uploaded new labeled images, click below to retrain the model.</p>
-    <button id="retrainBtn"> Retrain Model</button>
+    <button id="retrainBtn">Retrain Model</button>
     <div id="retrainStatus"></div>
   </section>
+
+  <!-- Sound Alert -->
+  <audio id="alertSound" src="invalid.mp3"></audio>
 
   <script src="script.js"></script>
 </body>
 </html>
+
 
 

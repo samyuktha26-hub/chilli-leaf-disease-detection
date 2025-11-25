@@ -2,6 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("uploadForm");
     const fileInput = document.getElementById("fileInput");
     const preview = document.getElementById("preview");
+    const invalidMsg = document.getElementById("invalidMsg");
     const heatmapImg = document.getElementById("heatmap");
     const loader = document.getElementById("loader");
 
@@ -11,21 +12,40 @@ document.addEventListener("DOMContentLoaded", () => {
     const predSeverity = document.getElementById("predSeverity");
     const treatmentTableBody = document.querySelector("#treatmentTable tbody");
 
-    const chatBox = document.getElementById("chatBox");
-    const chatInput = document.getElementById("chatInput");
-    const chatBtn = document.getElementById("chatBtn");
-    
-    // Toggle Chatbox Elements
+    // chatbot
     const chatToggleBtn = document.getElementById("chatToggleBtn");
     const chatContainer = document.getElementById("chatContainer");
+    const chatBox = document.getElementById("chatBox");
+    const chatBtn = document.getElementById("chatBtn");
+    const chatInput = document.getElementById("chatInput");
 
-    // --- Form submit (Prediction) ---
+    const alertSound = document.getElementById("alertSound");
+
+    chatToggleBtn.addEventListener("click", () => {
+        chatContainer.style.display = chatContainer.style.display === "flex" ? "none" : "flex";
+    });
+
+      fileInput.addEventListener("change", () => {
+        const file = fileInput.files[0];
+        if (file) {
+            preview.src = URL.createObjectURL(file);
+            preview.style.display = "block";
+            invalidMsg.style.display = "none";
+            resultCard.style.display = "none";
+            heatmapImg.style.display = "none";
+        }
+    });
+
+    // --- Upload form ---
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
         const file = fileInput.files[0];
-        if (!file) return alert("Select an image!");
+        if (!file) return alert("Select an image");
 
+        preview.src = URL.createObjectURL(file);
+        preview.style.display = "block";
         loader.style.display = "block";
+        invalidMsg.style.display = "none";
         resultCard.style.display = "none";
         heatmapImg.style.display = "none";
         treatmentTableBody.innerHTML = "";
@@ -33,156 +53,88 @@ document.addEventListener("DOMContentLoaded", () => {
         const formData = new FormData();
         formData.append("file", file);
 
+        // FIRST — verify if chilli leaf
+        const leafCheck = await fetch("http://127.0.0.1:5000/validate_leaf", {
+            method: "POST",
+            body: formData
+        });
+
+        const leafResult = await leafCheck.json();
+
+        if (!leafResult.is_chilli_leaf) {
+            loader.style.display = "none";
+            invalidMsg.textContent = "❌ Not a chilli leaf. Upload another image.";
+            invalidMsg.style.display = "block";
+
+            alertSound.play();
+
+            chatContainer.style.display = "flex";
+            appendChat("Bot", "This seems to be not a chilli leaf. Upload a valid chilli leaf image for prediction.");
+            return;
+        }
+
+        // If valid chilli leaf → send for prediction
         try {
             const res = await fetch("http://127.0.0.1:5000/predict", { method: "POST", body: formData });
             const data = await res.json();
 
-            // Preview
-            preview.src = URL.createObjectURL(file);
-            preview.style.display = "block";
+            predLabel.textContent = data.label;
+            predConfidence.textContent = (data.confidence * 100).toFixed(2);
+            predSeverity.textContent = data.severity;
 
-            // Grad-CAM
+            treatmentTableBody.innerHTML = `<tr><td>${data.label}</td><td>${data.treatment}</td></tr>`;
+
             if (data.gradcam) {
                 heatmapImg.src = "data:image/jpeg;base64," + data.gradcam;
                 heatmapImg.style.display = "block";
             }
 
-            // Result info
-            predLabel.innerText = data.label;
-            predConfidence.innerText = (data.confidence * 100).toFixed(2);
-            predSeverity.innerText = data.severity;
-
-            // Treatment table
-            treatmentTableBody.innerHTML = `<tr><td>${data.label}</td><td>${data.treatment}</td></tr>`;
-
             resultCard.style.display = "block";
-
-        } catch (err) {
-            alert("Error communicating with backend!");
-            console.error(err);
+        } catch (error) {
+            alert("Error connecting to backend");
+            console.error(error);
         } finally {
             loader.style.display = "none";
         }
     });
 
-    // --- File preview ---
-    fileInput.addEventListener("change", () => {
-        const file = fileInput.files[0];
-        if (file) {
-            preview.src = URL.createObjectURL(file);
-            preview.style.display = "block";
-        }
-    });
-
-    // ------------------------------------------------------
-    // --- NEW CHATBOT LOGIC (Connects to Python Backend) ---
-    // ------------------------------------------------------
-    
-    // 1. Toggle Chat Window
-    if (chatToggleBtn && chatContainer) {
-        chatToggleBtn.addEventListener("click", () => {
-            // Toggle between 'none' and 'flex'
-            if (chatContainer.style.display === "none" || chatContainer.style.display === "") {
-                chatContainer.style.display = "flex";
-            } else {
-                chatContainer.style.display = "none";
-            }
-        });
-    }
-
-    // 2. Send Message
+    // chatbot send
     chatBtn.addEventListener("click", async () => {
         const msg = chatInput.value.trim();
         if (!msg) return;
 
-        // Show User Message
         appendChat("You", msg);
         chatInput.value = "";
 
-        // Show "Thinking..."
-        const loadingId = "loading-" + Date.now();
-        appendChat("Bot", "<i>Thinking...</i>", loadingId);
+        const loadingId = "load-" + Date.now();
+        appendChat("Bot", "<i>Typing...</i>", loadingId);
 
-        try {
-            // Send to Python Backend
-            const res = await fetch("http://127.0.0.1:5000/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: msg })
-            });
+        const res = await fetch("http://127.0.0.1:5000/chat", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ message: msg })
+        });
 
-            const data = await res.json();
-
-            // Remove "Thinking..." and show response
-            removeChat(loadingId);
-            
-            if (data.reply) {
-                appendChat("Bot", data.reply);
-            } else if (data.error) {
-                appendChat("Bot", "Error: " + data.error);
-            }
-
-        } catch (err) {
-            console.error(err);
-            removeChat(loadingId);
-            appendChat("Bot", "Error: Could not connect to server.");
-        }
+        const data = await res.json();
+        removeChat(loadingId);
+        appendChat("Bot", data.reply);
     });
 
     function appendChat(sender, message, id = null) {
         const p = document.createElement("p");
         if (id) p.id = id;
-        
-        // Different colors for User vs Bot
-        if (sender === "You") {
-            p.style.textAlign = "right";
-            p.style.backgroundColor = "#4caf50"; 
-            p.style.color = "white";
-            p.style.padding = "8px";
-            p.style.borderRadius = "10px";
-            p.style.margin = "5px 0 5px auto"; // Align right
-            p.style.maxWidth = "80%";
-        } else {
-            p.style.textAlign = "left";
-            p.style.backgroundColor = "#444";
-            p.style.color = "white";
-            p.style.padding = "8px";
-            p.style.borderRadius = "10px";
-            p.style.margin = "5px auto 5px 0"; // Align left
-            p.style.maxWidth = "80%";
-        }
-
         p.innerHTML = `<strong>${sender}:</strong> ${message}`;
+        p.style.padding = "6px";
+        p.style.background = sender === "You" ? "#4caf50" : "#444";
+        p.style.margin = "5px";
+        p.style.color = "white";
+        p.style.borderRadius = "8px";
         chatBox.appendChild(p);
         chatBox.scrollTop = chatBox.scrollHeight;
     }
 
     function removeChat(id) {
-        const element = document.getElementById(id);
-        if (element) {
-            element.remove();
-        }
-    }
-
-    // --- Retrain button ---
-    const retrainBtn = document.getElementById("retrainBtn");
-    const retrainStatus = document.getElementById("retrainStatus");
-
-    if(retrainBtn){
-        retrainBtn.addEventListener("click", async () => {
-            retrainStatus.innerText = "⏳ Retraining started...";
-            try {
-                const res = await fetch("http://127.0.0.1:5000/retrain", { method: "POST" });
-                const data = await res.json();
-                if (res.ok) {
-                    retrainStatus.innerText = "✅ " + data.message;
-                } else {
-                    retrainStatus.innerText = "❌ Retraining failed: " + (data.error || "unknown error");
-                }
-            } catch (err) {
-                retrainStatus.innerText = "❌ Error connecting to backend.";
-                console.error(err);
-            }
-        });
+        const x = document.getElementById(id);
+        if (x) x.remove();
     }
 });
